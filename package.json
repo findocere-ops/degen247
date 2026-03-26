@@ -1,0 +1,43 @@
+{
+  "name": "degen247",
+  "version": "3.0.0",
+  "description": "Autonomous Meteora DLMM liquidity agent on Solana — Meridian v2 architecture",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "DRY_RUN=true ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest --coverage",
+    "postinstall": "node scripts/patch-anchor.cjs"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@meteora-ag/dlmm": "^1.9.4",
+    "@solana/spl-token": "^0.3.11",
+    "@solana/web3.js": "^1.98.4",
+    "axios": "^1.13.6",
+    "better-sqlite3": "^11.10.0",
+    "bn.js": "^5.2.3",
+    "bs58": "^5.0.0",
+    "dotenv": "^17.3.1",
+    "node-cron": "^3.0.3",
+    "telegraf": "^4.16.3",
+    "uuid": "^13.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/bn.js": "^5.2.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.37",
+    "@types/node-cron": "^3.0.11",
+    "@types/uuid": "^10.0.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
