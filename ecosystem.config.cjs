@@ -7,7 +7,7 @@ module.exports = {
     restart_delay: 5000,
     max_restarts: 20,
     min_uptime: '10s',
-    cron_restart: '0 4 * * *',  // daily 4am restart clears memory leaks
+    cron_restart: '0 23 * * *',  // daily 6am GMT+7 (23:00 UTC) restart clears memory leaks
     env: {
       NODE_ENV: 'production',
     },
