@@ -8,7 +8,7 @@
     "dev": "DRY_RUN=true ts-node src/index.ts",
     "start": "node dist/index.js",
     "test": "jest --coverage",
-    "postinstall": "node scripts/patch-anchor.cjs"
+    "postinstall": "node scripts/patch-bigint-buffer.cjs && node scripts/patch-anchor.cjs"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
