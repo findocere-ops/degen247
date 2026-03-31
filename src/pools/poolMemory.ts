@@ -33,6 +33,19 @@ export class PoolMemory {
         total_deploys = total_deploys + 1,
         last_deployed = excluded.last_deployed
     `).run(poolAddress, tokenPair, Date.now());
+    this.enforceLimits();
+  }
+
+  private enforceLimits() {
+    // Keep max 2000 pools in history to prevent SQLite database exhaustion
+    this.db.prepare(`
+      DELETE FROM pool_history 
+      WHERE pool_address IN (
+        SELECT pool_address FROM pool_history 
+        ORDER BY last_deployed DESC 
+        LIMIT -1 OFFSET 2000
+      )
+    `).run();
   }
 
   recordExit(poolAddress: string, pnlSol: number, holdMinutes: number, exitReason: string) {

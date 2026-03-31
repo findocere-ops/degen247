@@ -31,7 +31,9 @@ export const MIGRATIONS = [
     closed_at DATETIME,
     pnl_sol REAL,
     fees_sol REAL,
-    exit_reason TEXT
+    exit_reason TEXT,
+    lower_bin_id INTEGER,
+    upper_bin_id INTEGER
   );`,
 
   // 4. portfolio

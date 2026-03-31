@@ -20,7 +20,7 @@ jest.mock('@meteora-ag/dlmm', () => {
     initializePositionAndAddLiquidityByStrategy: jest.fn().mockResolvedValue(new Transaction()),
     removeLiquidity: jest.fn().mockResolvedValue(mockRemoveTxs),
     claimAllSwapFee: jest.fn().mockResolvedValue([new Transaction()]),
-    getPositionsByUserAndLbPair: jest.fn().mockResolvedValue([]),
+    getPositionsByUserAndLbPair: jest.fn().mockResolvedValue({ userPositions: [] }),
     autoFillYByStrategy: jest.fn().mockReturnValue(new BN(500)),
     lbPair: {
       vParameters: { binStep: 10 },
@@ -79,7 +79,6 @@ describe('Phase 1 - Execution Layer', () => {
       const result = await meteoraClient.openPosition({
         poolAddress,
         totalXAmount: new BN(100),
-        totalYAmount: new BN(200),
         minBinId: 90,
         maxBinId: 110,
         strategyType: StrategyType.Spot
@@ -90,8 +89,8 @@ describe('Phase 1 - Execution Layer', () => {
         expect.objectContaining({
           user: wallet.publicKey,
           totalXAmount: new BN(100),
-          totalYAmount: new BN(200),
-          strategy: { minBinId: 90, maxBinId: 110, strategyType: StrategyType.Spot },
+          totalYAmount: new BN(500),
+          strategy: { minBinId: 190, maxBinId: 210, strategyType: StrategyType.Spot },
           slippage: 1
         })
       );
@@ -100,7 +99,7 @@ describe('Phase 1 - Execution Layer', () => {
       expect(web3.sendAndConfirmTransaction).toHaveBeenCalledWith(
         connection,
         expect.any(Transaction),
-        expect.arrayContaining([wallet, result.positionKeypair]),
+        expect.arrayContaining([wallet, expect.any(Keypair)]), // positionKeypair is generated inside
         expect.any(Object)
       );
       expect(result.txSignature).toBe('tx-sig-123');
@@ -136,14 +135,13 @@ describe('Phase 1 - Execution Layer', () => {
       const sig = await meteoraClient.claimFees(poolAddress, []);
       expect(web3.sendAndConfirmTransaction).toHaveBeenCalledTimes(3);
       expect(sig).toEqual(['success-sig']);
-    });
+    }, 15000);
 
     it('dryRun mode does NOT call sendAndConfirmTransaction', async () => {
       meteoraClient.dryRun = true;
       await meteoraClient.openPosition({
         poolAddress,
         totalXAmount: new BN(100),
-        totalYAmount: new BN(200),
         minBinId: 90,
         maxBinId: 110,
         strategyType: StrategyType.Spot

@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { config } from '../config';
 import { MIGRATIONS } from './migrations';
 
@@ -9,6 +10,10 @@ export function initDb(): Database.Database {
   if (db) return db;
 
   const dbPath = path.resolve(process.cwd(), config.DB_PATH);
+  // Auto-create data/ directory if it doesn't exist (needed on fresh VPS clone)
+  const dbDir = path.dirname(dbPath);
+  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
   db = new Database(dbPath);
 
   db.pragma('journal_mode = WAL');

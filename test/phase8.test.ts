@@ -10,7 +10,7 @@ describe('Phase 8 - Telegram Bot Interface', () => {
 
   beforeAll(() => {
     db = initDb();
-    tgBot = new TelegramInterface(db, mockToken, mockPriv);
+    tgBot = new TelegramInterface(db);
   });
 
   beforeEach(() => {
@@ -38,13 +38,9 @@ describe('Phase 8 - Telegram Bot Interface', () => {
     expect(state.paused).toBe(true);
   });
 
-  it('securely handles /exportkey requiring the exact ephemeral token', async () => {
-    const badRes = await tgBot.handleCommand('/exportkey WRONG');
-    expect(badRes).toContain('Unauthorized');
-    
-    // Actually we inject string via config but mock overrides directly
-    const goodRes = await tgBot.handleCommand(`/exportkey ${mockToken}`);
-    expect(goodRes).toContain(mockPriv);
+  it('reports free-form echo on /exportkey as it is now disabled', async () => {
+    const res = await tgBot.handleCommand('/exportkey WRONG');
+    expect(res).toContain('OpenRouter Agent routed: Free-form echo');
   });
 
   it('fallback routes everything else via freeform echo LLM pipe natively', async () => {

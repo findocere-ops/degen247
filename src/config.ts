@@ -17,6 +17,7 @@ const EnvSchema = z.object({
   LPAGENT_API_BASE: z.string().url().optional(),
   OPENROUTER_API_KEY: z.string().startsWith('sk-'),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
   DRY_RUN: z.string().transform((v) => v === 'true').default('true'),
   DB_PATH: z.string().default('./data/degen247.sqlite')
 });

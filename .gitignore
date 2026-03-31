@@ -5,3 +5,8 @@ data/
 *.enc
 upstream-snapshot.json
 logs/
+coverage/
+.DS_Store
+.agents/
+skills-lock.json
+*.sqlite

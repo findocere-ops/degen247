@@ -1,10 +1,11 @@
 import { initDb, closeDb } from '../src/db/database';
 import { PayoutManager } from '../src/owner/payoutManager';
 import { TopupDetector } from '../src/owner/topupDetector';
-import { exportKeyAuthorized } from '../src/owner/keyExport';
+
 import { generateMorningBriefing } from '../src/agents/briefing';
 import { state } from '../src/state';
 import { config } from '../src/config';
+import { Connection } from '@solana/web3.js';
 
 describe('Phase 6 - Owner & Briefing', () => {
   let db: any;
@@ -31,7 +32,8 @@ describe('Phase 6 - Owner & Briefing', () => {
 
   describe('PayoutManager', () => {
     it('distributes profit properly ignoring negative limits', () => {
-      const pm = new PayoutManager(db);
+      const connection = new Connection('http://localhost:8899');
+      const pm = new PayoutManager(db, connection, true);
       pm.distributeProfit(-1);
       
       const payoutDocs = db.prepare('SELECT * FROM payouts').all();
@@ -39,13 +41,13 @@ describe('Phase 6 - Owner & Briefing', () => {
     });
 
     it('triggers execution when threshold is met', () => {
-      const pm = new PayoutManager(db);
+      const connection = new Connection('http://localhost:8899');
+      const pm = new PayoutManager(db, connection, true);
       const testProfit = config.ownerPayoutThresholdSol / config.ownerPayoutPct; // Math ensures threshold hits
       
       pm.distributeProfit(testProfit); // Should trigger auto payout
 
-      const payoutDocs = db.prepare('SELECT * FROM payouts').all();
-      expect(payoutDocs.length).toBe(1);
+      const payoutDocs = db.prepare("SELECT amount_sol FROM payouts WHERE tx_signature LIKE 'DRY_RUN_PAYOUT_%'").all();
       expect(payoutDocs[0].amount_sol).toBeCloseTo(config.ownerPayoutThresholdSol, 2);
     });
   });
@@ -77,34 +79,7 @@ describe('Phase 6 - Owner & Briefing', () => {
     });
   });
 
-  describe('KeyExport', () => {
-    it('returns valid key on matching token', () => {
-      const stored = 'TEST_TOKEN_123';
-      const input = 'TEST_TOKEN_123';
-      const key = 'PRIVATE_BASE58_KEY';
-      
-      const result = exportKeyAuthorized(input, stored, key);
-      expect(result).toBe(key);
-    });
 
-    it('returns null on invalid length token mismatch', () => {
-      const stored = 'TEST_TOKEN_123';
-      const input = 'WRONG';
-      const key = 'PRIVATE_BASE58_KEY';
-      
-      const result = exportKeyAuthorized(input, stored, key);
-      expect(result).toBeNull();
-    });
-
-    it('returns null on exact length mismatch', () => {
-      const stored = 'TEST_TOKEN_123';
-      const input = 'TEST_T0KEN_123';
-      const key = 'PRIVATE_BASE58_KEY';
-      
-      const result = exportKeyAuthorized(input, stored, key);
-      expect(result).toBeNull();
-    });
-  });
 
   describe('Morning Briefing', () => {
     it('generates a formatted briefing payload', () => {

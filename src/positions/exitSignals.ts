@@ -1,9 +1,8 @@
 import { PositionRecord } from './types';
 import { config } from '../config';
-import DLMM from '@meteora-ag/dlmm'; // wait, it needs default import
-// Re-executing accurately for the full chunk:
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 import { logger } from '../logger';
+import { MeteoraClient } from './meteoraClient';
 
 export interface ExitSignalResult {
   inRange: boolean;
@@ -12,54 +11,85 @@ export interface ExitSignalResult {
   outOfRangeForWait: boolean;
   pnlPct: number;
   feePct: number;
+  currentValueSol: number;
   triggeredSignals: string[];
 }
 
+/**
+ * Evaluates position health using real on-chain data from the Meteora DLMM SDK.
+ * Falls back gracefully if RPC fails — defaults to safe assumptions.
+ */
 export async function evaluatePositionHealth(
   position: PositionRecord,
-  connection: Connection
+  connection: Connection,
+  meteoraClient?: MeteoraClient
 ): Promise<ExitSignalResult> {
   const result: ExitSignalResult = {
-    inRange: true, // We assume true if we can't fetch it
+    inRange: true,
     takeProfitTriggered: false,
     stopLossTriggered: false,
     outOfRangeForWait: false,
     pnlPct: 0,
     feePct: 0,
-    triggeredSignals: []
+    currentValueSol: position.entryValue,
+    triggeredSignals: [],
   };
 
   try {
-    // In a real implementation this would deserialize the position account and fetch current value.
-    // For V3 MVP we simulate based on standard inputs.
-    
-    // Simulate current value calculation
-    const currentValue = position.entryValue * 1.02; // Mock 2% gain
-    const pnlPct = ((currentValue - position.entryValue) / position.entryValue) * 100;
-    result.pnlPct = pnlPct;
+    // ── Real on-chain fetch ─────────────────────────────────────────────────
+    if (meteoraClient && !meteoraClient.dryRun) {
+      const posValue = await meteoraClient.getPositionValue(
+        position.poolAddress,
+        position.id
+      );
 
-    const fees = position.feesSol || 0;
-    const feePct = (fees / position.entryValue) * 100;
-    result.feePct = feePct;
+      if (posValue) {
+        result.currentValueSol = posValue.currentValueSol;
 
-    if (feePct >= config.takeProfitFeePct) {
+        const feesSol = posValue.feeY.toNumber() / 1e9;
+        result.feePct = (feesSol / position.entryValue) * 100;
+
+        const pnlSol = posValue.currentValueSol - position.entryValue;
+        result.pnlPct = (pnlSol / position.entryValue) * 100;
+
+        logger.info(
+          'SIGNALS',
+          `[${position.id.substring(0, 8)}] Current: ${posValue.currentValueSol.toFixed(4)} SOL | PnL: ${result.pnlPct.toFixed(2)}% | Fees: ${result.feePct.toFixed(2)}%`
+        );
+      }
+    } else {
+      // ── Dry-run / fallback: use stored feesSol if available ───────────────
+      const feesSol = position.feesSol ?? 0;
+      result.feePct = (feesSol / position.entryValue) * 100;
+      // Simulate neutral PnL in dry-run
+      result.pnlPct = 0;
+      result.currentValueSol = position.entryValue;
+    }
+
+    // ── Signal evaluation ───────────────────────────────────────────────────
+    if (result.feePct >= config.takeProfitFeePct) {
       result.takeProfitTriggered = true;
-      result.triggeredSignals.push('Fee take-profit');
+      result.triggeredSignals.push(`Fee take-profit (${result.feePct.toFixed(2)}% >= ${config.takeProfitFeePct}%)`);
     }
 
-    if (pnlPct <= -config.stopLossPct) {
+    if (result.pnlPct <= -config.stopLossPct) {
       result.stopLossTriggered = true;
-      result.triggeredSignals.push('Stop-loss breached');
+      result.triggeredSignals.push(`Stop-loss breached (${result.pnlPct.toFixed(2)}% <= -${config.stopLossPct}%)`);
     }
 
-    // Time checks for out-of-range simulations constraint
-    const holdMinutes = (Date.now() - new Date(position.openedAt || Date.now()).getTime()) / 60000;
+    // Out-of-range time check
+    const holdMinutes =
+      (Date.now() - new Date(position.openedAt ?? Date.now()).getTime()) / 60000;
     if (holdMinutes > config.outOfRangeWaitMinutes) {
-      // Logic would check meteora bin mapping here. Simulated as false positive for demo LLM.
+      result.outOfRangeForWait = true;
+      // Don't auto-trigger — pass to LLM healer for decision
     }
-
   } catch (err: any) {
-    logger.error('SIGNALS', `Failed to evaluate health for ${position.id}: ${err.message}`);
+    logger.error(
+      'SIGNALS',
+      `Failed to evaluate health for ${position.id}: ${err.message}`
+    );
+    // On error: safe defaults — don't trigger any exit
   }
 
   return result;
